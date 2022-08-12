@@ -1,13 +1,19 @@
-import {Entity, model, property} from '@loopback/repository';
+import {Entity, hasOne, model, property} from '@loopback/repository';
+import { v4 as uuid } from 'uuid'
+
+import { Armor } from './armor.model';
+import { Skill } from './skill.model';
+import { Weapon } from './weapon.model';
 
 @model()
 export class Character extends Entity {
   @property({
-    type: 'number',
+    type: 'string',
     id: true,
     generated: false,
+    default: () => uuid(),
   })
-  id?: number;
+  id?: string;
 
   @property({
     type: 'string',
@@ -21,7 +27,17 @@ export class Character extends Entity {
   })
   level?: number;
 
+  @hasOne(() => Armor)
+  armor?:Armor;
 
+  @hasOne(() => Weapon)
+  weapon?: Weapon;
+
+  @hasOne(() => Skill)
+  skill?: Skill;
+
+
+  
   constructor(data?: Partial<Character>) {
     super(data);
   }
