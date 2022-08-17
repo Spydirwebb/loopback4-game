@@ -2,6 +2,7 @@ image:
   file: .gitpod.dockerfile
 tasks:
   - init: |
+      npm i -g @loopback/cli
       echo 'TODO: build project'
     command: |
       echo 'TODO: start app'
