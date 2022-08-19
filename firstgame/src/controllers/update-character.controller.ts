@@ -93,25 +93,91 @@ export class UpdateCharacterController {
     @param.path.string('id') id: string,
     @requestBody() skill: Skill,
   ): Promise<Skill> {
-    //equip new skill
-    let char: Character = await this.characterRepository.findById(id);
-
-    //unequip old skill
-    let filter: Filter = {where:{"characterId":id}};
-    await this.characterRepository.updateById(id, char);
+    await this.characterRepository.skill(id).delete()
     return await this.characterRepository.skill(id).create(skill);
   }
 
-  @del('/characters/{id}')
+  @del('/updatecharacter/{id}/weapon')
   @response(204, {
-    description: 'Character DELETE success',
+    description: 'DELETE weapon success',
   })
-  async deleteById(@param.path.string('id') id: string): Promise<void> {
-    await this.characterRepository.weapon(id).delete();
-    await this.characterRepository.armor(id).delete();
-    await this.characterRepository.skill(id).delete();
-    
-    await this.characterRepository.deleteById(id);
+  async deleteWeapon(@param.path.string('id') id: string): Promise<void> {
+    let oldWeapon: Weapon = await this.characterRepository.weapon(id).get()
+    let char: Character = await this.characterRepository.findById(id)
+    char.attack! -= oldWeapon.attack!
+    char.defense! -= oldWeapon.defense!
+    await this.characterRepository.weapon(id).delete()
+    await this.characterRepository.updateById(id, char)
+  
+  }
+  @del('/updatecharacter/{id}/armor')
+  @response(204, {
+    description: 'DELETE armor success',
+  })
+  async deleteArmor(@param.path.string('id') id: string): Promise<void> {
+    let oldArmor: Armor = await this.characterRepository.armor(id).get()
+    let char: Character = await this.characterRepository.findById(id)
+    char.attack! -= oldArmor.attack!
+    char.defense! -= oldArmor.defense!
+    await this.characterRepository.armor(id).delete()
+    await this.characterRepository.updateById(id, char)
+  
+  }
+
+  @del('/updatecharacter/{id}/skill')
+  @response(204, {
+    description: 'DELETE skill success',
+  })
+  async deleteSkill(@param.path.string('id') id: string): Promise<void> {
+    await this.characterRepository.skill(id).delete()
+  }
+
+  @patch('/updatecharacter/{id}/levelup')
+  @response(204, {
+    description: 'Character levelup PATCH success',
+    content: {'application/json': {schema: Character}}
+  })
+  async levelUp(
+    @param.path.string('id') id: string
+  ): Promise<Character> {
+    let char: Character = await this.characterRepository.findById(id)
+    let levels: number = 0
+    while(char.currentExp! >= char.nextLevelExp!){
+      levels++;
+      char.currentExp! -= char.nextLevelExp!;
+      char.nextLevelExp! += 100;
+    }
+    char.level! += levels;
+    char.maxHealth! = 10 * levels;
+    char.currentHealth! = char.maxHealth!;
+    char.maxMana! += 5 * levels;
+    char.currentMana! = char.maxMana!;
+    char.attack! += 3 * levels;
+    char.defense! += levels;
+    await this.characterRepository!.updateById(id, char);
+    return char
+  }
+
+  @get('/updatecharacter/{id}')
+  @response(200, {
+    description: 'armor, weapon, and skill info',
+    content: {},
+  })
+  async findById(
+    @param.path.string('id') id: string,
+  ): Promise<any[]> {
+    let res: any[] = ['no weapon', 'no armor', 'no skill']
+    let filter = {where:{'characterId': id}}
+    if((await this.weaponRepository.find(filter))[0] != undefined){
+      res[0] = await this.characterRepository.weapon(id).get()
+    }
+    if((await this.armorRepository.find(filter))[0] != undefined){
+      res[1] = await this.characterRepository.weapon(id).get()
+    }
+    if((await this.skillRepository.find(filter))[0] != undefined){
+      res[2] = await this.characterRepository.weapon(id).get()
+    }
+    return res;
   }
 }
 /*

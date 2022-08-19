@@ -7,6 +7,7 @@ const config = {
   url: '',
   host: 'localhost',
   //host: 'https://3000-spydirwebb-loopback4gam-it1ntnqjzak.ws-us60.gitpod.io',
+  //mongodb+srv://spydirwebb:Spiderman@1@cluster0.gs0rbjz.mongodb.net/?retryWrites=true&w=majority
   port: 27017,
   user: '',
   password: '',

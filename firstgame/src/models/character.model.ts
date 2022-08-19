@@ -66,7 +66,7 @@ export class Character extends Entity {
     type: 'number',
   })
   defense?: number;
-
+  
   @hasOne(() => Armor)
   armor?:Armor;
 
