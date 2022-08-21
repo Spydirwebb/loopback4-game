@@ -16,7 +16,6 @@ import {
   del,
   requestBody,
   response,
-  getFilterSchemaFor,
 } from '@loopback/rest';
 import {Character} from '../models';
 import {CharacterRepository} from '../repositories';
@@ -38,12 +37,12 @@ export class CharacterController {
         'application/json': {
           schema: getModelSchemaRef(Character, {
             title: 'NewCharacter',
-            
+            exclude: ['id'],
           }),
         },
       },
     })
-    character: Character,
+    character: Omit<Character, 'id'>,
   ): Promise<Character> {
     return this.characterRepository.create(character);
   }
@@ -146,10 +145,6 @@ export class CharacterController {
     description: 'Character DELETE success',
   })
   async deleteById(@param.path.string('id') id: string): Promise<void> {
-    await this.characterRepository.weapon(id).delete();
-    await this.characterRepository.armor(id).delete();
-    await this.characterRepository.skill(id).delete();
-    
     await this.characterRepository.deleteById(id);
   }
 }
