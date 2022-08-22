@@ -1,4 +1,5 @@
-import {Entity, model, property} from '@loopback/repository';
+import {Entity, model, property, hasOne} from '@loopback/repository';
+import {Armor} from './armor.model';
 
 @model()
 export class Character extends Entity {
@@ -67,6 +68,9 @@ export class Character extends Entity {
     default: 5,
   })
   defense?: number
+
+  @hasOne(() => Armor)
+  armor: Armor;
 
   constructor(data?: Partial<Character>) {
     super(data);

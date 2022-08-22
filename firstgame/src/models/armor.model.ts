@@ -1,4 +1,5 @@
-import {Entity, model, property} from '@loopback/repository';
+import {Entity, model, property, belongsTo} from '@loopback/repository';
+import {Character} from './character.model';
 
 @model()
 export class Armor extends Entity {
@@ -25,6 +26,8 @@ export class Armor extends Entity {
   })
   defense?: number;
 
+  @belongsTo(() => Character)
+  characterId: string;
 
   constructor(data?: Partial<Armor>) {
     super(data);
