@@ -10,10 +10,15 @@ export class Character extends Entity {
   @property({
     type: 'string',
     id: true,
-    generated: false,
-    default: () => uuid(),
+    required: true,
   })
-  id?: string;
+  email?: string;
+
+  @property({
+    type: 'string',
+    required: true,
+  })
+  password: string;
 
   @property({
     type: 'string',

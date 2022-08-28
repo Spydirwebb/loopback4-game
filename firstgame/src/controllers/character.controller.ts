@@ -20,7 +20,9 @@ import {
 } from '@loopback/rest';
 import {Character} from '../models';
 import {CharacterRepository} from '../repositories';
+import { authenticate } from '@loopback/authentication'
 
+@authenticate('jwt')
 export class CharacterController {
   constructor(
     @repository(CharacterRepository)

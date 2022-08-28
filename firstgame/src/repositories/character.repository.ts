@@ -12,20 +12,20 @@ import { SkillRepository } from './skill.repository';
 
 export class CharacterRepository extends DefaultCrudRepository<
   Character,
-  typeof Character.prototype.id,
+  typeof Character.prototype.email,
   CharacterRelations
 > {
   public armor: HasOneRepositoryFactory<
   Armor,
-  typeof Character.prototype.id
+  typeof Character.prototype.email
   >;
   public weapon: HasOneRepositoryFactory<
   Weapon,
-  typeof Character.prototype.id
+  typeof Character.prototype.email
   >;
   public skill: HasOneRepositoryFactory<
   Skill,
-  typeof Character.prototype.id
+  typeof Character.prototype.email
   >;
 
   constructor(
