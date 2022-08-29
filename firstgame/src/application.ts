@@ -9,13 +9,15 @@ import {RestApplication} from '@loopback/rest';
 import {ServiceMixin} from '@loopback/service-proxy';
 import path from 'path';
 import {MySequence} from './sequence';
-import {AuthenticationComponent} from '@loopback/authentication';
+import {AuthenticationComponent, registerAuthenticationStrategy} from '@loopback/authentication';
 import {
   JWTAuthenticationComponent,
   SECURITY_SCHEME_SPEC,
   UserServiceBindings,
 } from '@loopback/authentication-jwt';
 import {MongoDataSource} from './datasources';
+import { MyAuthBindings } from './authorization/keys';
+import { UserPermissionsProvider } from './providers/user-permissions.provider';
 
 
 export {ApplicationConfig};
@@ -50,6 +52,10 @@ export class FirstgameApplication extends BootMixin(
     };
     // Mount authentication system
     this.component(AuthenticationComponent);
+    // Bind JWT & permission authentication strategy related elements
+    //registerAuthenticationStrategy(this, JWTStrategy);
+    //this.bind(MyAuthBindings.TOKEN_SERVICE).toClass(JWTService);
+    this.bind(MyAuthBindings.USER_PERMISSIONS).toProvider(UserPermissionsProvider);
     // Mount jwt component
     this.component(JWTAuthenticationComponent);
     // Bind datasource

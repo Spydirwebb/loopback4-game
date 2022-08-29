@@ -3,6 +3,8 @@ import {
   CountSchema,
   Filter,
   FilterExcludingWhere,
+  model,
+  property,
   repository,
   Where,
 } from '@loopback/repository';
@@ -17,24 +19,83 @@ import {
   requestBody,
   response,
   getFilterSchemaFor,
+  HttpErrors,
+  SchemaObject,
 } from '@loopback/rest';
 import {Character} from '../models';
 import {CharacterRepository} from '../repositories';
+import {SecurityBindings, securityId, UserProfile} from '@loopback/security';
 import { authenticate } from '@loopback/authentication'
+import { PermissionKey } from '../authorization/permission-key';
+import {
+        TokenService,
+        AuthenticationBindings,
+} from '@loopback/authentication';
+import {
+  Credentials,
+  MyUserService,
+  TokenServiceBindings,
+  User,
+  UserRepository,
+  UserServiceBindings,
+} from '@loopback/authentication-jwt'
+import { Getter, inject } from '@loopback/core';
+import { MyUserProfile, UserProfileSchema, UserRequestBody } from '../authorization/types';
 
-@authenticate('jwt')
+@model()
+export class NewCharacterRequest extends Character {
+  @property({
+    type: 'string',
+    required: true,
+  })
+  password?: string;
+}
+
+const CredentialsSchema: SchemaObject = {
+  type: 'object',
+  required: ['email', 'password'],
+  properties: {
+    email: {
+      type: 'string',
+      format: 'email',
+    },
+    password: {
+      type: 'string',
+      minLength: 8,
+    },
+  },
+};
+
+export const CredentialsRequestBody = {
+  description: 'The input of login function',
+  required: true,
+  content: {
+    'application/json': {schema: CredentialsSchema},
+  },
+};
+
 export class CharacterController {
   constructor(
     @repository(CharacterRepository)
     public characterRepository : CharacterRepository,
+    @inject(TokenServiceBindings.TOKEN_SERVICE)
+    public jwtService: TokenService,
+    @inject(UserServiceBindings.USER_SERVICE)
+    public userService: MyUserService,
+    @inject(SecurityBindings.USER, {optional: true})
+    public user: UserProfile,
+    @inject.getter(AuthenticationBindings.CURRENT_USER)
+    public getCurrentUser: Getter<MyUserProfile>,
   ) {}
 
   @post('/characters')
   @response(200, {
     description: 'Character model instance',
-    content: {'application/json': {schema: getModelSchemaRef(Character)}},
+    //content: {'application/json': {schema: getModelSchemaRef(Character)}},
+    content: {'application/json': {schema: {'x-ts-type': Character}}},
   })
   async create(
+    //@requestBody(UserRequestBody)
     @requestBody({
       content: {
         'application/json': {
@@ -47,111 +108,107 @@ export class CharacterController {
     })
     character: Character,
   ): Promise<Character> {
-    return this.characterRepository.create(character);
+      character.permissions = [ PermissionKey.ViewOwnUser,
+                                PermissionKey.CreateUser,
+                                PermissionKey.UpdateOwnUser,
+                                PermissionKey.DeleteOwnUser];
+      if (await this.characterRepository.exists(character.email)){
+        throw new HttpErrors.BadRequest(`This email already exists`);
+      }
+      else {
+        const savedCharacter = await this.characterRepository.create(character);
+        delete savedCharacter.password;
+      return savedCharacter;
+      };
   }
 
-  @get('/characters/count')
-  @response(200, {
-    description: 'Character model count',
-    content: {'application/json': {schema: CountSchema}},
-  })
-  async count(
-    @param.where(Character) where?: Where<Character>,
-  ): Promise<Count> {
-    return this.characterRepository.count(where);
-  }
-
-  @get('/characters')
-  @response(200, {
-    description: 'Array of Character model instances',
-    content: {
-      'application/json': {
-        schema: {
-          type: 'array',
-          items: getModelSchemaRef(Character, {includeRelations: true}),
+  @post('/characters/login', {
+    responses: {
+      '200': {
+        description: 'Token',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                token: {
+                  type: 'string',
+                },
+              },
+            },
+          },
         },
       },
     },
   })
-  async find(
-    @param.filter(Character) filter?: Filter<Character>,
-  ): Promise<Character[]> {
-    return this.characterRepository.find(filter);
-  }
+  async login(
+    @requestBody(CredentialsRequestBody) credentials: Credentials,
+  ): Promise<{token: string}> {
+    // ensure the user exists, and the password is correct
+    const user = await this.userService.verifyCredentials(credentials);
+    // convert a User object into a UserProfile object (reduced set of properties)
+    const userProfile = this.userService.convertToUserProfile(user);
 
-  @patch('/characters')
-  @response(200, {
-    description: 'Character PATCH success count',
-    content: {'application/json': {schema: CountSchema}},
-  })
-  async updateAll(
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: getModelSchemaRef(Character, {partial: true}),
+    // create a JSON Web Token based on the user profile
+    const token = await this.jwtService.generateToken(userProfile);
+    return {token};
+  }
+  
+  @authenticate('jwt')
+  @get('/characters/me', {
+    responses: {
+      '200': {
+        description: 'The current user profile',
+        content: {
+          'application/json': {
+            schema: UserProfileSchema,
+          },
         },
       },
-    })
-    character: Character,
-    @param.where(Character) where?: Where<Character>,
-  ): Promise<Count> {
-    return this.characterRepository.updateAll(character, where);
+    },
+  })
+  async printCurrentUser(
+  ): Promise<MyUserProfile> {
+    return this.getCurrentUser();
   }
 
-  @get('/characters/{id}')
-  @response(200, {
-    description: 'Character model instance',
-    content: {
-      'application/json': {
-        schema: getModelSchemaRef(Character, {includeRelations: true}),
+  /**
+   * show current character
+   */
+  @authenticate('jwt')
+  @get('/characters', {
+    responses: {
+      '200': {
+        description: 'Character model instance',
+        content: {'application/json': {schema: {'x-ts-type': Character}}},
       },
     },
   })
   async findById(
-    @param.path.string('id') id: string,
-    @param.filter(Character, {exclude: 'where'}) filter?: FilterExcludingWhere<Character>
   ): Promise<Character> {
-    return this.characterRepository.findById(id, filter);
+    const currentUser = await this.getCurrentUser();
+    return await this.characterRepository.findById(currentUser.email);
   }
 
-  @patch('/characters/{id}')
-  @response(204, {
-    description: 'Character PATCH success',
-  })
-  async updateById(
-    @param.path.string('id') id: string,
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: getModelSchemaRef(Character, {partial: true}),
-        },
+  /**
+   * delete current character
+   */
+  @del('/characters', {
+    responses: {
+      '204': {
+        description: 'Character DELETE success',
       },
-    })
-    character: Character,
-  ): Promise<void> {
-    await this.characterRepository.updateById(id, character);
-  }
-
-  @put('/characters/{id}')
-  @response(204, {
-    description: 'Character PUT success',
+    },
   })
-  async replaceById(
-    @param.path.string('id') id: string,
-    @requestBody() character: Character,
+  @authenticate('jwt')
+  async deleteById(
   ): Promise<void> {
-    await this.characterRepository.replaceById(id, character);
-  }
-
-  @del('/characters/{id}')
-  @response(204, {
-    description: 'Character DELETE success',
-  })
-  async deleteById(@param.path.string('id') id: string): Promise<void> {
-    await this.characterRepository.weapon(id).delete();
-    await this.characterRepository.armor(id).delete();
-    await this.characterRepository.skill(id).delete();
-    
-    await this.characterRepository.deleteById(id);
+    const currentUser = await this.getCurrentUser();
+    //delete weapon, armor, and skill
+    await this.characterRepository.weapon(currentUser.email).delete();
+    await this.characterRepository.armor(currentUser.email).delete();
+    await this.characterRepository.skill(currentUser.email).delete();
+    ///
+    await this.characterRepository.deleteById(currentUser.email);
   }
 }

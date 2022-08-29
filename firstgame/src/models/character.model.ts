@@ -18,7 +18,10 @@ export class Character extends Entity {
     type: 'string',
     required: true,
   })
-  password: string;
+  password?: string;
+
+  @property.array(String)
+  permissions: String[];
 
   @property({
     type: 'string',
